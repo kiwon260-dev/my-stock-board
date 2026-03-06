@@ -13,26 +13,30 @@
         header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; }
         .logo { font-size: 18px; font-weight: 800; color: var(--accent-blue); }
         .live-tag { font-family: 'JetBrains Mono'; font-size: 26px; font-weight: 800; }
-        .dashboard-grid { display: grid; grid-template-columns: repeat(4, 2fr); grid-template-rows: repeat(2, 1fr); gap: 12px; flex-grow: 1; }
+        /* 4열 그리드 복구 */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); gap: 12px; flex-grow: 1; }
         .info-box { background: var(--box-bg); border-radius: var(--radius); padding: 18px; border: 1px solid rgba(0, 149, 255, 0.08); box-shadow: 0 4px 12px rgba(0, 149, 255, 0.03); }
         .box-title { font-size: 11px; font-weight: 800; color: #8fa1b3; margin-bottom: 12px; text-transform: uppercase; }
         .data-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f8fafd; }
         .ticker-name { font-weight: 600; font-size: 13px; color: #445566; }
         .price { font-family: 'JetBrains Mono'; font-weight: 700; font-size: 14px; text-align: right; }
         .up { color: var(--up-color); } .down { color: var(--down-color); }
-        footer { margin-top: 15px; background: #1a2b3c; border-radius: 10px; height: 32px; display: flex; align-items: center; color: white; font-size: 11px; padding: 0 15px; }
+        footer { margin-top: 15px; background: #1a2b3c; border-radius: 10px; height: 40px; display: flex; align-items: center; color: white; font-size: 13px; padding: 0 15px; font-weight: 600; }
     </style>
 </head>
 <body>
     <header><div class="logo">MARKET FACT BOARD</div><div class="live-tag" id="live-clock">00:00:00</div></header>
-    <div class="dashboard-grid" id="grid">
-        <div class="info-box"><div class="box-title">미국 지수</div><div id="content-us_futures"></div></div>
-        <div class="info-box"><div class="box-title">글로벌 지수</div><div id="content-global_idx"></div></div>
-        <div class="info-box"><div class="box-title">가상자산</div><div id="content-crypto"></div></div>
-        <div class="info-box"><div class="box-title">원자재</div><div id="content-commodity"></div></div>
-        <div class="info-box"><div class="box-title">위험 지표</div><div id="content-risk"></div></div>
+    <div class="dashboard-grid">
+        <div class="info-box"><div class="box-title">미국 주요 지수</div><div id="box-us_futures"></div></div>
+        <div class="info-box"><div class="box-title">글로벌 지표</div><div id="box-global_idx"></div></div>
+        <div class="info-box"><div class="box-title">외환 및 채권</div><div id="box-fx_bond"></div></div>
+        <div class="info-box"><div class="box-title">가상자산</div><div id="box-crypto"></div></div>
+        <div class="info-box"><div class="box-title">원자재</div><div id="box-commodity"></div></div>
+        <div class="info-box"><div class="box-title">산업 지표</div><div id="box-industry"></div></div>
+        <div class="info-box"><div class="box-title">국내 증시</div><div id="box-korea"></div></div>
+        <div class="info-box"><div class="box-title" style="color: #ff3b30;">리스크 관리</div><div id="box-risk"></div></div>
     </div>
-    <footer><div id="news-line">연결 중...</div></footer>
+    <footer><div id="news-display">📢 데이터 동기화 중...</div></footer>
 
     <script>
         const firebaseConfig = {
@@ -46,19 +50,21 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        function updateClock() { document.getElementById('live-clock').innerText = new Date().toLocaleTimeString(); }
-        setInterval(updateClock, 1000);
+        setInterval(() => { document.getElementById('live-clock').innerText = new Date().toLocaleTimeString(); }, 1000);
 
-        // 데이터 실시간 수신 핵심 로직
         db.ref('market_data').on('value', (snapshot) => {
             const data = snapshot.val();
             if (!data) return;
 
-            // 각 섹션별 데이터 렌더링
-            Object.keys(data).forEach(key => {
-                const container = document.getElementById(`content-${key}`);
-                if (container && Array.isArray(data[key])) {
-                    container.innerHTML = data[key].map(item => `
+            // 뉴스 업데이트
+            if (data.news) document.getElementById('news-display').innerText = data.news;
+
+            // 시세 업데이트 (4열 그리드 8개 박스 모두 대응)
+            const ids = ['us_futures', 'global_idx', 'fx_bond', 'crypto', 'commodity', 'industry', 'korea', 'risk'];
+            ids.forEach(id => {
+                const container = document.getElementById(`box-${id}`);
+                if (container && data[id]) {
+                    container.innerHTML = data[id].map(item => `
                         <div class="data-row">
                             <span class="ticker-name">${item.name}</span>
                             <div>
@@ -71,7 +77,6 @@
                     `).join('');
                 }
             });
-            if (data.news) document.getElementById('news-line').innerText = data.news;
         });
     </script>
 </body>
