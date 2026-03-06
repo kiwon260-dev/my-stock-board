@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MARKET FACT BOARD</title>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --main-bg: #f0f7ff; --box-bg: #ffffff; --accent-blue: #0095ff;
+            --up-color: #ff3b30; --down-color: #007aff; --radius: 18px;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 20px; background-color: var(--main-bg); font-family: 'Inter', sans-serif; color: #1a2b3c; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 0 10px 15px 10px; flex-shrink: 0; }
+        .logo { font-size: 18px; font-weight: 800; color: var(--accent-blue); }
+
+        .live-tag { font-family: 'JetBrains Mono'; font-size: 26px; letter-spacing: -1px; display: flex; gap: 10px; }
+        .t-bold { font-weight: 800; color: #1a2b3c; }
+        .t-light { font-weight: 400; color: #1a2b3c; opacity: 0.5; }
+
+        .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); gap: 12px; flex-grow: 1; }
+        .info-box { background: var(--box-bg); border-radius: var(--radius); padding: 18px; border: 1px solid rgba(0, 149, 255, 0.08); position: relative; box-shadow: 0 4px 12px rgba(0, 149, 255, 0.03); display: flex; flex-direction: column; overflow: hidden; }
+        .box-title { font-size: 11px; font-weight: 800; color: #8fa1b3; margin-bottom: 12px; text-transform: uppercase; }
+
+        .help-icon { position: absolute; top: 15px; right: 15px; width: 20px; height: 20px; background: #e1f0ff; color: var(--accent-blue); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; cursor: pointer; z-index: 10; }
+        .insight-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 43, 91, 0.96); color: white; padding: 20px; display: none; flex-direction: column; z-index: 20; }
+        .insight-overlay.active { display: flex; }
+        .insight-title { font-size: 14px; font-weight: 800; color: #70d0ff; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 8px; }
+        .insight-content { font-size: 11px; line-height: 1.7; color: #e0f0ff; }
+        .close-btn { position: absolute; top: 12px; right: 12px; cursor: pointer; color: white; font-size: 18px; }
+
+        .data-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 6px; border-bottom: 1px solid #f8fafd; border-radius: 8px; }
+        .flash-up { animation: flash-red 0.8s ease-out; }
+        .flash-down { animation: flash-blue 0.8s ease-out; }
+        @keyframes flash-red { 0% { background-color: rgba(255, 59, 48, 0.3); } 100% { background-color: transparent; } }
+        @keyframes flash-blue { 0% { background-color: rgba(0, 122, 255, 0.3); } 100% { background-color: transparent; } }
+
+        .ticker-name { font-weight: 600; font-size: 13px; color: #445566; }
+        .price { font-family: 'JetBrains Mono'; font-weight: 700; font-size: 14px; }
+        .up { color: var(--up-color); } .down { color: var(--down-color); }
+        footer { margin-top: 15px; background: #1a2b3c; border-radius: 10px; height: 32px; display: flex; align-items: center; color: white; font-size: 11px; padding: 0 15px; flex-shrink: 0; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">MARKET FACT BOARD</div>
+        <div class="live-tag" id="live-clock"></div>
+    </header>
+    <div class="dashboard-grid" id="grid">
+        <script>
+            const boxes = [
+                { id: "us_futures", title: "미국 주요 지수", guide: "📈 상승 시: 호재 / 📉 하락 시: 악재" },
+                { id: "global_idx", title: "글로벌 지표", guide: "📈 상승 시: 호재 / 📉 하락 시: 악재" },
+                { id: "fx_bond", title: "외환 및 채권", guide: "📈 상승 시: 악재 / 📉 하락 시: 호재" },
+                { id: "crypto", title: "가상자산", guide: "📈 상승 시: 호재 / 📉 하락 시: 악재" },
+                { id: "commodity", title: "원자재", guide: "📈 상승 시: 악재 / 📉 하락 시: 호재" },
+                { id: "industry", title: "산업 지표", guide: "📈 상승 시: 호재 / 📉 하락 시: 악재" },
+                { id: "korea", title: "국내 증시", guide: "📈 상승 시: 호재 / 📉 하락 시: 악재" },
+                { id: "risk", title: "리스크 관리", guide: "📈 상승 시: 악재 / 📉 하락 시: 호재", risk: true }
+            ];
+            boxes.forEach((box, i) => {
+                document.write(`
+                    <div class="info-box">
+                        <div class="help-icon" onclick="toggleInsight(${i})">?</div>
+                        <div class="insight-overlay">
+                            <span class="close-btn" onclick="toggleInsight(${i})">✕</span>
+                            <div class="insight-title">💡 ${box.title} 가이드</div>
+                            <div class="insight-content">${box.guide}</div>
+                        </div>
+                        <div class="box-title" style="${box.risk ? 'color:#ff3b30' : ''}">${box.title}</div>
+                        <div id="content-${box.id}">연결 중...</div>
+                    </div>
+                `);
+            });
+            function toggleInsight(index) {
+                const overlays = document.querySelectorAll('.insight-overlay');
+                overlays[index].classList.toggle('active');
+            }
+        </script>
+    </div>
+    <footer><div id="news-line">실시간 뉴스 수신 대기 중...</div></footer>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBi3tmz6lbSqQ4b99iQF6ZsvYp9CB_UnEU",
+            authDomain: "stock-f04e2.firebaseapp.com",
+            databaseURL: "https://stock-f04e2-default-rtdb.firebaseio.com",
+            projectId: "stock-f04e2",
+            storageBucket: "stock-f04e2.firebasestorage.app",
+            messagingSenderId: "345477021822",
+            appId: "1:345477021822:web:1490fd49ca2f96c130982f"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const lastPrices = {};
+
+        function updateClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('live-clock').innerHTML = `<span class="t-bold">${h} ${m}</span> <span class="t-light">${s}</span>`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        db.ref('market_data').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
+            boxes.forEach(box => {
+                const boxData = data[box.id];
+                if (boxData) {
+                    let html = '';
+                    Object.values(boxData).forEach((item, idx) => {
+                        const price = Number(item.price);
+                        const key = `${box.id}-${item.name}`;
+                        let flashClass = '';
+                        if (lastPrices[key] !== undefined && lastPrices[key] !== price) {
+                            flashClass = (price > lastPrices[key]) ? 'flash-up' : 'flash-down';
+                        }
+                        lastPrices[key] = price;
+                        const isUp = item.percent >= 0;
+                        html += `
+                            <div class="data-row ${flashClass}">
+                                <span class="ticker-name">${item.name}</span>
+                                <div style="text-align:right">
+                                    <div class="price">${price.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+                                    <div style="font-size:11px; font-weight:800;" class="${isUp ? 'up' : 'down'}">
+                                        ${isUp ? '+' : ''}${Number(item.percent).toFixed(2)}%
+                                    </div>
+                                </div>
+                            </div>`;
+                    });
+                    document.getElementById(`content-${box.id}`).innerHTML = html;
+                }
+            });
+            if (data.news) document.getElementById('news-line').innerText = data.news;
+        });
+    </script>
+</body>
+</html>
