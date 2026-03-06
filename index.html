@@ -84,15 +84,16 @@
     <footer><div id="news-line">실시간 뉴스 수신 대기 중...</div></footer>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyBi3tmz6lbSqQ4b99iQF6ZsvYp9CB_UnEU",
-            authDomain: "stock-f04e2.firebaseapp.com",
-            databaseURL: "https://stock-f04e2-default-rtdb.firebaseio.com",
-            projectId: "stock-f04e2",
-            storageBucket: "stock-f04e2.firebasestorage.app",
-            messagingSenderId: "345477021822",
-            appId: "1:345477021822:web:1490fd49ca2f96c130982f"
-        };
+// index.html 하단 설정 부분
+const firebaseConfig = {
+    apiKey: "AIzaSyBi3tmz6lbSqQ4b99iQF6ZsvYp9CB_UnEU",
+    authDomain: "stock-f04e2.firebaseapp.com",
+    databaseURL: "https://stock-f04e2-default-rtdb.firebaseio.com",
+    projectId: "stock-f04e2",
+    storageBucket: "stock-f04e2.firebasestorage.app",
+    messagingSenderId: "345477021822",
+    appId: "1:345477021822:web:1490fd49ca2f96c130982f"
+};
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         const lastPrices = {};
